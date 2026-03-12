@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pitch Tracker Session Stats</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #131a2e;
+      --panel-2: #1a2340;
+      --text: #eaf0ff;
+      --muted: #9eabc7;
+      --line: rgba(255,255,255,0.08);
+      --accent: #5aa9ff;
+      --accent-2: #8fceff;
+      --good: #2dd36f;
+      --warn: #ffb84d;
+      --danger: #ff6b6b;
+      --heat-0: #1a2340;
+      --shadow: 0 18px 40px rgba(0,0,0,.28);
+      --radius: 20px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(90,169,255,.22), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(143,206,255,.12), transparent 22%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .wrap {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 18px;
+    }
+    .shell {
+      border: 1px solid var(--line);
+      background: rgba(19,26,46,.88);
+      backdrop-filter: blur(10px);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .header {
+      padding: 20px 22px 16px;
+      border-bottom: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+    }
+    .eyebrow {
+      color: var(--accent-2);
+      font-size: 12px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+    .title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 36px);
+      line-height: 1.05;
+    }
+    .sub {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.08);
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding: 16px 22px 6px;
+    }
+    .controls select, .controls button {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .controls button { cursor: pointer; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1.2fr .95fr;
+      gap: 18px;
+      padding: 16px 22px 22px;
+    }
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px;
+    }
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+      letter-spacing: .03em;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .stat {
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 94px;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+    .value {
+      font-size: clamp(24px, 3.6vw, 34px);
+      font-weight: 800;
+      line-height: 1;
+    }
+    .mini {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .meter {
+      margin-top: 12px;
+      height: 10px;
+      width: 100%;
+      background: rgba(255,255,255,.06);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .meter > span {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      width: 0%;
+    }
+    .heat-wrap {
+      display: grid;
+      gap: 14px;
+    }
+    .heat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(84px, 1fr));
+      gap: 10px;
+      width: 100%;
+    }
+    .zone {
+      min-height: 108px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      display: grid;
+      place-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      background: var(--heat-0);
+      transition: transform .15s ease, background .15s ease;
+    }
+    .zone:hover { transform: translateY(-1px); }
+    .zone-id {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      font-size: 12px;
+      color: rgba(255,255,255,.68);
+      font-weight: 700;
+    }
+    .zone-count {
+      font-size: clamp(26px, 4vw, 38px);
+      font-weight: 900;
+      line-height: 1;
+    }
+    .zone-sub {
+      font-size: 11px;
+      color: rgba(255,255,255,.75);
+      margin-top: 6px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .legend {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .legend-bar {
+      flex: 1;
+      min-width: 140px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(90,169,255,.1), rgba(90,169,255,.9));
+      border: 1px solid rgba(255,255,255,.08);
+    }
+    .breakdown {
+      display: grid;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      font-size: 14px;
+    }
+    .row:last-child { border-bottom: 0; padding-bottom: 0; }
+    .muted { color: var(--muted); }
+    .error, .loading {
+      padding: 30px 22px 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .error strong { color: var(--danger); }
+    .foot {
+      padding: 0 22px 22px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="shell">
+      <div class="header">
+        <div class="eyebrow">Pitch Tracker</div>
+        <div class="title-row">
+          <h1 id="title">Session Heatmap</h1>
+          <div class="pill" id="goalPill">Goal: —</div>
+        </div>
+        <div class="sub">
+          <div id="sessionMeta">Session: —</div>
+          <div id="pitcherMeta">Pitcher: —</div>
+          <div id="pitchTypeMeta">Pitch Type: All</div>
+        </div>
+      </div>
+
+      <div class="controls">
+        <select id="pitchTypeSelect" aria-label="Pitch type filter"></select>
+        <button id="refreshBtn" type="button">Refresh</button>
+      </div>
+
+      <div id="content" class="grid" hidden>
+        <section class="card">
+          <h2>Session Stats</h2>
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Pitches</div>
+              <div class="value" id="totalPitches">0</div>
+              <div class="mini" id="goalMini">0 / 0</div>
+              <div class="meter"><span id="goalMeter"></span></div>
+            </div>
+            <div class="stat">
+              <div class="label">Points</div>
+              <div class="value" id="points">0</div>
+              <div class="mini">3 direct hit · 1 neighbor</div>
+            </div>
+            <div class="stat">
+              <div class="label">Strikes</div>
+              <div class="value" id="strikes">0</div>
+              <div class="mini" id="strikePct">0%</div>
+            </div>
+            <div class="stat">
+              <div class="label">Balls</div>
+              <div class="value" id="balls">0</div>
+              <div class="mini" id="ballPct">0%</div>
+            </div>
+          </div>
+          <div class="breakdown">
+            <div class="row"><span class="muted">Direct hits</span><strong id="directHits">0</strong></div>
+            <div class="row"><span class="muted">Neighbor hits</span><strong id="neighborHits">0</strong></div>
+            <div class="row"><span class="muted">Misses</span><strong id="misses">0</strong></div>
+          </div>
+        </section>
+
+        <section class="card heat-wrap">
+          <div>
+            <h2>Heatmap</h2>
+            <div class="legend">
+              <span>Low</span>
+              <div class="legend-bar"></div>
+              <span>High</span>
+            </div>
+          </div>
+          <div class="heat-grid" id="heatGrid"></div>
+        </section>
+      </div>
+
+      <div id="loading" class="loading">Loading session stats…</div>
+      <div id="error" class="error" hidden></div>
+      <div class="foot">
+        Supports either direct values in the URL or auto-compute from a CSV/JSON endpoint using <code>sessionId</code> + <code>pitcherId</code>.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const byId = (id) => document.getElementById(id);
+    const asBool = (v) => /^(true|1|yes)$/i.test(String(v || '').trim());
+    const num = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const pct = (n, d) => d ? ((n / d) * 100) : 0;
+    const safe = (v, fallback = '—') => (v == null || v === '') ? fallback : String(v);
+
+    const cfg = {
+      sessionId: params.get('sessionId') || '',
+      sessionName: params.get('sessionName') || params.get('title') || 'Session Heatmap',
+      pitcherId: params.get('pitcherId') || '',
+      pitcherName: params.get('pitcherName') || '',
+      goal: num(params.get('goal') || params.get('pitchesPerPlayer') || 0),
+      csvUrl: params.get('csvUrl') || '',
+      dataUrl: params.get('dataUrl') || '',
+      refreshSec: Math.max(0, num(params.get('refreshSec') || 0)),
+      defaultPitchType: params.get('pitchType') || 'All',
+      pitchTypeField: params.get('pitchTypeField') || 'PitchType'
+    };
+
+    let selectedPitchType = cfg.defaultPitchType;
+    let cachedRows = [];
+
+    function setHeader(meta) {
+      byId('title').textContent = meta.title || 'Session Heatmap';
+      byId('sessionMeta').textContent = `Session: ${safe(meta.sessionName, cfg.sessionId || '—')}`;
+      byId('pitcherMeta').textContent = `Pitcher: ${safe(meta.pitcherName, cfg.pitcherId || '—')}`;
+      byId('goalPill').textContent = `Goal: ${cfg.goal || '—'}`;
+      byId('pitchTypeMeta').textContent = `Pitch Type: ${selectedPitchType || 'All'}`;
+    }
+
+    function showError(msg) {
+      byId('loading').hidden = true;
+      byId('content').hidden = true;
+      const err = byId('error');
+      err.hidden = false;
+      err.innerHTML = `<strong>Couldn’t build stats.</strong><br>${msg}`;
+    }
+
+    function showContent() {
+      byId('loading').hidden = true;
+      byId('error').hidden = true;
+      byId('content').hidden = false;
+    }
+
+    function normalizeKey(k) {
+      return String(k || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function lookup(row, ...candidates) {
+      const map = {};
+      for (const [k, v] of Object.entries(row || {})) map[normalizeKey(k)] = v;
+      for (const c of candidates) {
+        const hit = map[normalizeKey(c)];
+        if (hit !== undefined) return hit;
+      }
+      return '';
+    }
+
+    function normalizeRows(rows) {
+      return rows.map((r) => ({
+        sessionId: String(lookup(r, 'SessionID', 'sessionId')).trim(),
+        pitcherId: String(lookup(r, 'PitcherID', 'pitcherId')).trim(),
+        pitchType: String(lookup(r, cfg.pitchTypeField, 'Pitch Type', 'pitchType')).trim(),
+        actualZone: num(lookup(r, 'ActualZone', 'actualZone')),
+        isBall: asBool(lookup(r, 'IsBall', 'isBall')),
+        isDeleted: asBool(lookup(r, 'IsDeleted', 'isDeleted')),
+        points: num(lookup(r, 'Points', 'points')),
+        timestamp: lookup(r, 'Timestamp', 'timestamp'),
+        raw: r,
+      }));
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [];
+      let cell = '';
+      let i = 0;
+      let inQuotes = false;
+      while (i < text.length) {
+        const ch = text[i];
+        const next = text[i + 1];
+        if (inQuotes) {
+          if (ch === '"' && next === '"') { cell += '"'; i += 2; continue; }
+          if (ch === '"') { inQuotes = false; i++; continue; }
+          cell += ch; i++; continue;
+        }
+        if (ch === '"') { inQuotes = true; i++; continue; }
+        if (ch === ',') { row.push(cell); cell = ''; i++; continue; }
+        if (ch === '\n') { row.push(cell); rows.push(row); row = []; cell = ''; i++; continue; }
+        if (ch === '\r') { i++; continue; }
+        cell += ch; i++;
+      }
+      if (cell.length || row.length) { row.push(cell); rows.push(row); }
+      const headers = (rows.shift() || []).map(h => h.trim());
+      return rows.filter(r => r.some(v => String(v).trim() !== '')).map(r => {
+        const obj = {};
+        headers.forEach((h, idx) => obj[h] = r[idx] ?? '');
+        return obj;
+      });
+    }
+
+    async function fetchRows() {
+      if (cfg.dataUrl) {
+        const res = await fetch(cfg.dataUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`dataUrl returned ${res.status}`);
+        const json = await res.json();
+        const rows = Array.isArray(json) ? json : (json.rows || json.data || []);
+        return normalizeRows(rows);
+      }
+      if (cfg.csvUrl) {
+        const res = await fetch(cfg.csvUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`csvUrl returned ${res.status}`);
+        const text = await res.text();
+        return normalizeRows(parseCsv(text));
+      }
+      return null;
+    }
+
+    function rowsFromDirectParams() {
+      const explicitZones = Array.from({ length: 9 }, (_, idx) => num(params.get(`z${idx + 1}`) || 0));
+      const hasExplicitZones = explicitZones.some(v => v > 0) || params.has('z1');
+      if (!hasExplicitZones) return null;
+      const balls = num(params.get('balls') || 0);
+      const strikes = num(params.get('strikes') || explicitZones.reduce((a,b)=>a+b,0));
+      const points = num(params.get('points') || 0);
+      const total = num(params.get('total') || (balls + strikes));
+      return {
+        explicitZones,
+        stats: {
+          total,
+          balls,
+          strikes,
+          strikePct: pct(strikes, total),
+          ballPct: pct(balls, total),
+          points,
+          directHits: num(params.get('directHits') || 0),
+          neighborHits: num(params.get('neighborHits') || 0),
+          misses: num(params.get('misses') || 0),
+        }
+      };
+    }
+
+    function compute(rows) {
+      const filtered = rows.filter(r =>
+        (!cfg.sessionId || r.sessionId === cfg.sessionId) &&
+        (!cfg.pitcherId || r.pitcherId === cfg.pitcherId) &&
+        !r.isDeleted &&
+        (selectedPitchType === 'All' || !selectedPitchType ? true : String(r.pitchType || '').trim() === selectedPitchType)
+      );
+
+      const zones = Array(9).fill(0);
+      let balls = 0, strikes = 0, points = 0, directHits = 0, neighborHits = 0;
+      for (const r of filtered) {
+        if (r.isBall) balls += 1;
+        else strikes += 1;
+        const z = r.actualZone;
+        if (z >= 1 && z <= 9) zones[z - 1] += 1;
+        points += r.points || 0;
+        if ((r.points || 0) === 3) directHits += 1;
+        if ((r.points || 0) === 1) neighborHits += 1;
+      }
+      const total = filtered.length;
+      return {
+        zones,
+        stats: {
+          total,
+          balls,
+          strikes,
+          strikePct: pct(strikes, total),
+          ballPct: pct(balls, total),
+          points,
+          directHits,
+          neighborHits,
+          misses: Math.max(0, total - directHits - neighborHits - balls),
+        },
+        pitchTypes: Array.from(new Set(rows.map(r => String(r.pitchType || '').trim()).filter(Boolean))).sort()
+      };
+    }
+
+    function heatColor(count, max) {
+      if (!max || !count) return 'linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01))';
+      const t = count / max;
+      const alpha = 0.16 + (t * 0.78);
+      return `linear-gradient(180deg, rgba(90,169,255,${alpha}), rgba(40,87,171,${Math.min(0.95, alpha + 0.08)}))`;
+    }
+
+    function render(result) {
+      const { zones, stats, pitchTypes = [] } = result;
+      setHeader({ title: cfg.sessionName || 'Session Heatmap', sessionName: cfg.sessionName, pitcherName: cfg.pitcherName });
+      byId('totalPitches').textContent = stats.total;
+      byId('points').textContent = stats.points;
+      byId('strikes').textContent = stats.strikes;
+      byId('balls').textContent = stats.balls;
+      byId('strikePct').textContent = `${stats.strikePct.toFixed(1)}% strike rate`;
+      byId('ballPct').textContent = `${stats.ballPct.toFixed(1)}% ball rate`;
+      byId('directHits').textContent = stats.directHits;
+      byId('neighborHits').textContent = stats.neighborHits;
+      byId('misses').textContent = stats.misses;
+      byId('goalMini').textContent = cfg.goal ? `${stats.total} / ${cfg.goal}` : `${stats.total} logged`;
+      const meter = cfg.goal ? Math.min(100, (stats.total / cfg.goal) * 100) : 0;
+      byId('goalMeter').style.width = `${meter}%`;
+      const max = Math.max(...zones, 0);
+      byId('heatGrid').innerHTML = zones.map((count, idx) => `
+        <div class="zone" style="background:${heatColor(count, max)}">
+          <div class="zone-id">Zone ${idx + 1}</div>
+          <div>
+            <div class="zone-count">${count}</div>
+            <div class="zone-sub">pitches</div>
+          </div>
+        </div>
+      `).join('');
+
+      const select = byId('pitchTypeSelect');
+      const opts = ['All', ...pitchTypes];
+      select.innerHTML = opts.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}" ${v === selectedPitchType ? 'selected' : ''}>${v}</option>`).join('');
+      byId('pitchTypeMeta').textContent = `Pitch Type: ${selectedPitchType || 'All'}`;
+      showContent();
+    }
+
+    async function loadAndRender() {
+      try {
+        byId('loading').hidden = false;
+        const direct = rowsFromDirectParams();
+        if (direct) {
+          render({ zones: direct.explicitZones, stats: direct.stats, pitchTypes: [] });
+          return;
+        }
+        if (!cachedRows.length) {
+          const rows = await fetchRows();
+          if (!rows) {
+            showError('Provide either <code>csvUrl</code>/<code>dataUrl</code> plus <code>sessionId</code> and <code>pitcherId</code>, or pass direct zone counts as <code>z1</code>…<code>z9</code>.');
+            return;
+          }
+          cachedRows = rows;
+        }
+        render(compute(cachedRows));
+      } catch (err) {
+        showError(err.message || String(err));
+      }
+    }
+
+    byId('refreshBtn').addEventListener('click', async () => {
+      cachedRows = [];
+      await loadAndRender();
+    });
+
+    byId('pitchTypeSelect').addEventListener('change', async (e) => {
+      selectedPitchType = e.target.value;
+      if (cachedRows.length) render(compute(cachedRows));
+      else await loadAndRender();
+    });
+
+    loadAndRender();
+    if (cfg.refreshSec > 0) {
+      setInterval(async () => {
+        cachedRows = [];
+        await loadAndRender();
+      }, cfg.refreshSec * 1000);
+    }
+  </script>
+</body>
+</html>
